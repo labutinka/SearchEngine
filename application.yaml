@@ -19,8 +19,7 @@ indexing-settings:
   sites:
     - url: https://nikoartgallery.com/
       name: NikoArtGallery
-    - url: https://playback.ru/
-      name: Playback
+
   errors:
     indexingNotStarted : "Индексация не запущена"
     indexingAlreadyStarted : "Индексация уже запущена"
@@ -40,6 +39,9 @@ indexing-settings:
     - .mp4
     - .php
     - .pdf
+    - .PDF
+    - .doc
+    - .xlsx
 jsoup-settings:
     referrer : "http://www.google.com"
     userAgent : "Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"

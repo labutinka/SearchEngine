@@ -1,4 +1,4 @@
-package searchengine;
+package searchengine.dto;
 
 import lombok.Value;
 

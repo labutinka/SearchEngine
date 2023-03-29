@@ -6,11 +6,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.controllers.exeptions.ApiException;
 import searchengine.services.IndexingService;
-import searchengine.services.IndexingServiceImpl;
 import searchengine.services.StatisticsService;
-
-import javax.persistence.Id;
 
 @RestController
 @RequestMapping("/api")
@@ -30,12 +28,11 @@ public class ApiController {
     }
 
     @GetMapping("/startIndexing")
-    public ResponseEntity<?> startIndexing(){
-
+    public ResponseEntity<?> startIndexing() throws ApiException {
         return ResponseEntity.ok(indexService.startIndexing());
     }
     @GetMapping("/stopIndexing")
-    public ResponseEntity stopIndexing(){
+    public ResponseEntity stopIndexing() throws ApiException {
         return ResponseEntity.ok(indexService.stopIndexing());
     }
 

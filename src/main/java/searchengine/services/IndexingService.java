@@ -1,9 +1,9 @@
 package searchengine.services;
 
-import org.springframework.http.ResponseEntity;
-import searchengine.BasicResponse;
+import searchengine.dto.BasicResponse;
+import searchengine.controllers.exeptions.ApiException;
 
 public interface IndexingService {
-    BasicResponse startIndexing();
-    BasicResponse stopIndexing();
+    BasicResponse startIndexing() throws ApiException;
+    BasicResponse stopIndexing() throws ApiException;
 }

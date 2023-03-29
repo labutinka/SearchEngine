@@ -2,10 +2,9 @@ package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import searchengine.SiteParser;
-import searchengine.BasicResponse;
+import searchengine.dto.BasicResponse;
 import searchengine.config.*;
-import searchengine.exeptions.ApiException;
+import searchengine.controllers.exeptions.ApiException;
 import searchengine.model.IndexingStatus;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.PageRepository;
@@ -27,14 +26,11 @@ public class IndexingServiceImpl implements IndexingService {
     public volatile static boolean isInterrupted;
     public static boolean isRunning;
 
-
     @Override
-    public BasicResponse startIndexing() {
-
+    public BasicResponse startIndexing() throws ApiException {
         if (isRunning) {
             throw new ApiException(errorsList.getErrors().get("indexingAlreadyStarted"));
         }
-
         List<Site> sitesList = sites.getSites();
         isRunning = true;
         isInterrupted = false;
@@ -43,8 +39,8 @@ public class IndexingServiceImpl implements IndexingService {
 
         return new BasicResponse(true);
     }
-
-    public BasicResponse stopIndexing() {
+    @Override
+    public BasicResponse stopIndexing() throws ApiException{
         isInterrupted = true;
         if (!isRunning) {
             throw new ApiException(errorsList.getErrors().get("indexingNotStarted"));
@@ -83,15 +79,10 @@ public class IndexingServiceImpl implements IndexingService {
                             extensions, jsoupSettings);
                     forkJoinPool.invoke(siteParser);
                     if (forkJoinPool.submit(siteParser).isDone()) {
-                        siteEntity.setStatus(IndexingStatus.INDEXED);
-                        siteEntity.setStatusTime(LocalDateTime.now());
-                        siteRepository.save(siteEntity);
+                        changeSiteEntity(siteEntity,IndexingStatus.INDEXED,LocalDateTime.now(),"");
                     }
                     if (isInterrupted) {
-                        siteEntity.setStatus(IndexingStatus.FAILED);
-                        siteEntity.setStatusTime(LocalDateTime.now());
-                        siteEntity.setLastError(errorsList.getErrors().get("indexingStopped"));
-                        siteRepository.save(siteEntity);
+                        changeSiteEntity(siteEntity,IndexingStatus.FAILED,LocalDateTime.now(),errorsList.getErrors().get("indexingStopped"));
                     }
                 };
                 Thread thread = new Thread(task);
@@ -103,5 +94,10 @@ public class IndexingServiceImpl implements IndexingService {
         }
     }
 
-
+    private synchronized void changeSiteEntity(SiteEntity siteEntity, IndexingStatus status, LocalDateTime statusTime, String lastError){
+        siteEntity.setStatus(status);
+        siteEntity.setStatusTime(statusTime);
+        siteEntity.setLastError(lastError);
+        siteRepository.save(siteEntity);
+    }
 }

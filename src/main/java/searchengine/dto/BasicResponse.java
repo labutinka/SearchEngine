@@ -1,9 +1,9 @@
-package searchengine;
+package searchengine.dto;
 
 import lombok.Value;
 
 @Value
 public class BasicResponse {
-    private boolean result;
+    boolean result;
 
 }

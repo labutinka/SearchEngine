@@ -1,4 +1,4 @@
-package searchengine;
+package searchengine.services;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,10 +25,10 @@ import java.net.URI;
 
 import static searchengine.services.IndexingServiceImpl.isInterrupted;
 
+
 public class SiteParser extends RecursiveTask<Set<String>> {
     private static final Logger logger = LogManager.getLogger(SiteParser.class);
-    private static Set<String> links = Collections.synchronizedSet(new HashSet<>());
-    private static Set<String> parsedLinks = Collections.synchronizedSet(new HashSet<>());
+    private static final Set<String> links = Collections.synchronizedSet(new HashSet<>());
     private final ExtensionsList extensions;
     SiteEntity siteEntity;
     private URI uri;
@@ -36,7 +36,10 @@ public class SiteParser extends RecursiveTask<Set<String>> {
     PageRepository pageRepository;
     SiteRepository siteRepository;
     JsoupSettings jsoupSettings;
-
+    private int statusCode;
+    private String content;
+    private String path;
+    private static final Set<String> parsedLinks = Collections.synchronizedSet(new HashSet<>());
 
     public SiteParser(String rootUrl, PageRepository pageRepository, SiteRepository siteRepository,
                       SiteEntity siteEntity, ExtensionsList extensions, JsoupSettings jsoupSettings) {
@@ -52,13 +55,12 @@ public class SiteParser extends RecursiveTask<Set<String>> {
     @Override
     protected Set<String> compute() {
         List<SiteParser> taskList = new ArrayList<>();
-        while (!isInterrupted) {
+        if (!isInterrupted) {
             try {
                 uri = new URI(rootUrl);
             } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
-
             for (String singleLink : getUrl(rootUrl)) {
                 if (!parsedLinks.contains(singleLink)) {
                     SiteParser task = new SiteParser(singleLink, pageRepository, siteRepository, siteEntity, extensions, jsoupSettings);
@@ -66,7 +68,6 @@ public class SiteParser extends RecursiveTask<Set<String>> {
                     task.fork();
                 }
             }
-
             for (SiteParser task : taskList) {
                 links.addAll(task.join());
             }
@@ -74,7 +75,6 @@ public class SiteParser extends RecursiveTask<Set<String>> {
         if (isInterrupted) {
             taskList.clear();
         }
-
 
         return links;
     }
@@ -87,6 +87,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
             Thread.sleep(150);
             String userAgent = jsoupSettings.getUserAgent();
             String referrer = jsoupSettings.getReferrer();
+
             doc = Jsoup.connect(rootUrl).userAgent(userAgent)
                     .followRedirects(false)
                     .referrer(referrer)
@@ -94,31 +95,15 @@ public class SiteParser extends RecursiveTask<Set<String>> {
             parsedLinks.add(rootUrl);
 
         } catch (HttpStatusException ex) {
-            siteEntity.setLastError("Ошибка при обработке " + rootUrl + ex.getLocalizedMessage());
-            siteEntity.setStatusTime(LocalDateTime.now());
-            siteRepository.save(siteEntity);
-            try {
-                saveErrorPage(rootUrl, ex.getStatusCode());
-            } catch (IOException | URISyntaxException exc) {
-                exc.printStackTrace();
-            }
+            manageErrorPage(ex);
         } catch (InterruptedException | IOException exc) {
             exc.printStackTrace();
         }
-        if (doc != null) {
-            Elements urlsAtag = doc.select("a");
-            urlsAtag.forEach(href ->
-            {
-                String url = href.absUrl("href");
-                if (checkURL(url) && links.add(url)) {
-                    result.add(href.absUrl("href"));
-                    try {
-                        savePage(href);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
+
+        Document finalDoc = doc;
+        if (finalDoc != null) {
+            Elements urlsAtag = finalDoc.select("a");
+            parseElements(urlsAtag, result);
         }
 
         return result;
@@ -126,50 +111,39 @@ public class SiteParser extends RecursiveTask<Set<String>> {
 
     private boolean checkURL(String url) {
         boolean isUrlOk = true;
-
         for (int i = 0; i < extensions.getExtensions().size(); i++) {
             if (url.contains(extensions.getExtensions().get(i))) {
                 isUrlOk = false;
                 break;
             }
         }
-
         return url.contains(uri.getHost()) && isUrlOk;
     }
 
-    private synchronized void savePage(Element path) throws IOException {
-        if (pageRepository.findByName(fixPath(path.attr("href"))) == null) {
-            Connection.Response response = Jsoup.connect(path.absUrl("href")).execute();
-            int code = response.statusCode();
+    private void saveDataPage(Element linkPath) throws IOException {
+        Connection.Response response = Jsoup.connect(linkPath.absUrl("href")).execute();
+        statusCode = response.statusCode();
+        content = response.body();
+        path = fixPath(linkPath.attr("href"));
+    }
 
+    private void saveDataErrorPage(String url, int code) throws IOException, URISyntaxException {
+        URI uri = new URI(url);
+        statusCode = code;
+        content = " ";
+        path = uri.getPath();
+    }
+
+    private synchronized void savePage(SiteEntity siteEntity, int code, String content, String path) throws IOException {
+        if (pageRepository.findByName(path) == null) {
             PageEntity page = new PageEntity();
             page.setSiteId(siteEntity);
             page.setCode(code);
-            page.setContent(response.body());
-            page.setPath(fixPath(path.attr("href")));
+            page.setContent(content);
+            page.setPath(path);
             pageRepository.save(page);
-
             updateTimeForSite(siteEntity);
         }
-
-    }
-
-    private synchronized void saveErrorPage(String url, int statusCode) throws IOException, URISyntaxException {
-
-        URI uri = new URI(url);
-
-        if (pageRepository.findByName(uri.getPath()) == null) {
-            PageEntity page = new PageEntity();
-            page.setSiteId(siteEntity);
-            page.setCode(statusCode);
-            page.setContent(" ");
-            page.setPath(uri.getPath());
-            pageRepository.save(page);
-
-            updateTimeForSite(siteEntity);
-
-        }
-
     }
 
     private String fixPath(String path) {
@@ -184,8 +158,35 @@ public class SiteParser extends RecursiveTask<Set<String>> {
         return path;
     }
 
-    private void updateTimeForSite(SiteEntity siteEntity) {
+    private synchronized void updateTimeForSite(SiteEntity siteEntity) {
         siteEntity.setStatusTime(LocalDateTime.now());
         siteRepository.save(siteEntity);
+    }
+
+    private void manageErrorPage(HttpStatusException ex) {
+        siteEntity.setLastError("Ошибка при обработке " + rootUrl + ex.getLocalizedMessage());
+        updateTimeForSite(siteEntity);
+        try {
+            saveDataErrorPage(rootUrl, ex.getStatusCode());
+            savePage(siteEntity, statusCode, content, path);
+        } catch (IOException | URISyntaxException exc) {
+            exc.printStackTrace();
+        }
+    }
+
+    private void parseElements(Elements urlsAtag, TreeSet<String> result){
+        urlsAtag.forEach(href ->
+        {
+            String url = href.absUrl("href");
+            if (checkURL(url) && links.add(url)) {
+                result.add(href.absUrl("href"));
+                try {
+                    saveDataPage(href);
+                    savePage(siteEntity, statusCode, content, path);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 }
