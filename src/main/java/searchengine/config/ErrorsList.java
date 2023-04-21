@@ -7,11 +7,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-
 @Data
 @Configuration
 @Component
-@ConfigurationProperties("indexing-settings")
+@ConfigurationProperties("errors-settings")
 public class ErrorsList {
     private Map<String,String> errors;
 }

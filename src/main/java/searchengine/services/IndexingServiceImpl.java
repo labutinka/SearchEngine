@@ -7,6 +7,8 @@ import searchengine.config.*;
 import searchengine.controllers.exeptions.ApiException;
 import searchengine.model.IndexingStatus;
 import searchengine.model.SiteEntity;
+import searchengine.repositories.IndexRepository;
+import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 
@@ -23,7 +25,13 @@ public class IndexingServiceImpl implements IndexingService {
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final ErrorsList errorsList;
-    public volatile static boolean isInterrupted;
+
+    private final LemmaRepository lemmaRepository;
+
+    private final IndexRepository indexRepository;
+
+    private final PageParser pageParser;
+    public static volatile  boolean isInterrupted;
     public static boolean isRunning;
 
     @Override
@@ -32,8 +40,8 @@ public class IndexingServiceImpl implements IndexingService {
             throw new ApiException(errorsList.getErrors().get("indexingAlreadyStarted"));
         }
         List<Site> sitesList = sites.getSites();
-        isRunning = true;
-        isInterrupted = false;
+        setIsRunningWhileStarted();
+        setIsInterruptedWhileStarted();
         ForkJoinPool forkJoinPool = new ForkJoinPool();
         executeMultiplyIndexing(sitesList, forkJoinPool);
 
@@ -41,33 +49,22 @@ public class IndexingServiceImpl implements IndexingService {
     }
     @Override
     public BasicResponse stopIndexing() throws ApiException{
-        isInterrupted = true;
+        setIsInterruptedWhileStopped();
         if (!isRunning) {
             throw new ApiException(errorsList.getErrors().get("indexingNotStarted"));
         }
-        isRunning = false;
+        setIsRunningWhileStopped();
         return new BasicResponse(true);
     }
-
-    private synchronized SiteEntity createSiteEntity(String name, String url) {
-        SiteEntity siteEntity = new SiteEntity();
-        siteEntity.setStatus(IndexingStatus.INDEXING);
-        siteEntity.setName(name);
-        siteEntity.setUrl(url);
-        siteEntity.setStatusTime(LocalDateTime.now());
-        siteRepository.save(siteEntity);
-
-        return siteEntity;
+    private static void setIsRunningWhileStarted(){
+        isRunning =  true;
     }
-
-    private synchronized void clearSitePage(String name, String url) {
-        siteRepository.findByNameAndUrl(name, url)
-                .forEach(siteRepository::delete);
+    private static void setIsInterruptedWhileStarted(){
+        isInterrupted = false;
     }
-
     private void executeMultiplyIndexing(List<Site> sitesList, ForkJoinPool forkJoinPool) {
         for (int i = 0; i < sitesList.size(); i++) {
-            clearSitePage(sitesList.get(i).getName(), sitesList.get(i).getUrl());
+            deleteInfoForSite(sitesList.get(i).getName(), sitesList.get(i).getUrl());
             SiteEntity siteEntity = createSiteEntity(sitesList.get(i).getName(), sitesList.get(i).getUrl());
 
             try {
@@ -76,10 +73,12 @@ public class IndexingServiceImpl implements IndexingService {
                     SiteParser siteParser = new SiteParser(sitesList.get(finalI).getUrl(),
                             pageRepository, siteRepository,
                             siteEntity,
-                            extensions, jsoupSettings);
+                            extensions, jsoupSettings,pageParser);
                     forkJoinPool.invoke(siteParser);
                     if (forkJoinPool.submit(siteParser).isDone()) {
                         changeSiteEntity(siteEntity,IndexingStatus.INDEXED,LocalDateTime.now(),"");
+                        setIsRunningWhileStopped();
+
                     }
                     if (isInterrupted) {
                         changeSiteEntity(siteEntity,IndexingStatus.FAILED,LocalDateTime.now(),errorsList.getErrors().get("indexingStopped"));
@@ -93,11 +92,42 @@ public class IndexingServiceImpl implements IndexingService {
             }
         }
     }
+    private synchronized void deleteInfoForSite(String name, String url) {
+        SiteEntity site = siteRepository.findByNameAndUrl(name, url);
+        pageRepository.findAllPagesForSite(site.getId())
+                .forEach(page ->
+                            {
+                                indexRepository.indexesForPage(page.getId()).forEach(indexRepository::delete);
+                                pageRepository.delete(page);
+                            }
+                           );
+        lemmaRepository.lemmasForSite(site.getId()).forEach(lemmaRepository::delete);
+        siteRepository.delete(site);
+
+    }
+
+    private synchronized SiteEntity createSiteEntity(String name, String url) {
+        SiteEntity siteEntity = new SiteEntity();
+        siteEntity.setStatus(IndexingStatus.INDEXING);
+        siteEntity.setName(name);
+        siteEntity.setUrl(url);
+        siteEntity.setStatusTime(LocalDateTime.now());
+        siteRepository.save(siteEntity);
+
+        return siteEntity;
+    }
 
     private synchronized void changeSiteEntity(SiteEntity siteEntity, IndexingStatus status, LocalDateTime statusTime, String lastError){
         siteEntity.setStatus(status);
         siteEntity.setStatusTime(statusTime);
         siteEntity.setLastError(lastError);
         siteRepository.save(siteEntity);
+    }
+
+    private static void setIsRunningWhileStopped(){
+        isRunning = false;
+    }
+    private static void setIsInterruptedWhileStopped(){
+        isInterrupted = true;
     }
 }

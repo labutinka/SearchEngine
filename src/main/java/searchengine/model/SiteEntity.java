@@ -1,16 +1,19 @@
 package searchengine.model;
 
-import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Data
+
 @Entity
 @Table(name = "site")
+@NoArgsConstructor
+@Getter
+@Setter
 public class SiteEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -32,7 +35,11 @@ public class SiteEntity {
     @Column(columnDefinition = "varchar(255)")
      String name;
 
-    @OneToMany(mappedBy = "siteId", cascade = CascadeType.REMOVE)
+    @OneToMany(mappedBy = "siteId")
     List<PageEntity> pagesList;
+
+    @OneToMany(mappedBy = "siteId")
+    List<PageEntity> lemmaList;
+
 
 }
