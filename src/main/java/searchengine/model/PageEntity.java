@@ -13,10 +13,11 @@ import javax.persistence.*;
 @Setter
 public class PageEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    int id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "my_seq")
+    @SequenceGenerator(name = "my_seq", sequenceName = "my_seq", allocationSize = 1)
+    long id;
 
-    @ManyToOne//cascade = CascadeType.REMOVE)
+    @ManyToOne(cascade = CascadeType.MERGE)
     @JoinColumn(name = "site_id")
     SiteEntity siteId;
 

@@ -7,6 +7,7 @@ import lombok.Setter;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 
 @Entity
@@ -16,8 +17,9 @@ import java.util.List;
 @Setter
 public class SiteEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private int id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "my_seq")
+    @SequenceGenerator(name = "my_seq", sequenceName = "my_seq", allocationSize = 1)
+    private long id;
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('INDEXING','INDEXED','FAILED')", nullable = false)
@@ -35,11 +37,11 @@ public class SiteEntity {
     @Column(columnDefinition = "varchar(255)")
      String name;
 
-    @OneToMany(mappedBy = "siteId")
+    @OneToMany(mappedBy = "siteId", cascade = CascadeType.MERGE)
     List<PageEntity> pagesList;
 
-    @OneToMany(mappedBy = "siteId")
-    List<PageEntity> lemmaList;
+    @OneToMany(mappedBy = "siteId", fetch = FetchType.EAGER)
+    Set<LemmaEntity> lemmaList;
 
 
 }

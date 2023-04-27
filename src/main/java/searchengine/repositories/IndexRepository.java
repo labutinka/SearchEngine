@@ -8,5 +8,5 @@ import java.util.ArrayList;
 
 public interface IndexRepository extends JpaRepository<IndexEntity,Integer> {
     @Query(value = "select * from `index` where page_id =:pageId", nativeQuery = true)
-    ArrayList<IndexEntity> indexesForPage(int pageId);
+    ArrayList<IndexEntity> indexesForPage(long pageId);
 }

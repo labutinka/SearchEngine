@@ -63,6 +63,7 @@ public class IndexingServiceImpl implements IndexingService {
         isInterrupted = false;
     }
     private void executeMultiplyIndexing(List<Site> sitesList, ForkJoinPool forkJoinPool) {
+        long start = System.currentTimeMillis();
         for (int i = 0; i < sitesList.size(); i++) {
             deleteInfoForSite(sitesList.get(i).getName(), sitesList.get(i).getUrl());
             SiteEntity siteEntity = createSiteEntity(sitesList.get(i).getName(), sitesList.get(i).getUrl());
@@ -79,6 +80,8 @@ public class IndexingServiceImpl implements IndexingService {
                         changeSiteEntity(siteEntity,IndexingStatus.INDEXED,LocalDateTime.now(),"");
                         setIsRunningWhileStopped();
 
+                        System.out.println("Duration: " + (System.currentTimeMillis() - start));
+
                     }
                     if (isInterrupted) {
                         changeSiteEntity(siteEntity,IndexingStatus.FAILED,LocalDateTime.now(),errorsList.getErrors().get("indexingStopped"));
@@ -94,15 +97,18 @@ public class IndexingServiceImpl implements IndexingService {
     }
     private synchronized void deleteInfoForSite(String name, String url) {
         SiteEntity site = siteRepository.findByNameAndUrl(name, url);
-        pageRepository.findAllPagesForSite(site.getId())
-                .forEach(page ->
+        if (site != null){
+
+            pageRepository.findAllPagesForSite(site.getId())
+                    .forEach(page ->
                             {
                                 indexRepository.indexesForPage(page.getId()).forEach(indexRepository::delete);
                                 pageRepository.delete(page);
                             }
-                           );
-        lemmaRepository.lemmasForSite(site.getId()).forEach(lemmaRepository::delete);
-        siteRepository.delete(site);
+                    );
+            lemmaRepository.lemmasForSite(site.getId()).forEach(lemmaRepository::delete);
+            siteRepository.delete(site);
+        }
 
     }
 

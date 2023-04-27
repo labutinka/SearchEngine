@@ -12,11 +12,11 @@ import java.util.ArrayList;
 public interface LemmaRepository extends JpaRepository<LemmaEntity,Integer> {
 
     @Query(value = "select * from lemma where site_id =:siteId and lemma=:lemma", nativeQuery = true)
-    LemmaEntity findLemmaByNameAndSiteId(int siteId, String lemma);
+    LemmaEntity findLemmaByNameAndSiteId(long siteId, String lemma);
 
     @Query(value = "select * from lemma where site_id=:siteId", nativeQuery = true)
-    ArrayList<LemmaEntity> lemmasForSite(int siteId);
+    ArrayList<LemmaEntity> lemmasForSite(long siteId);
 
     @Query(value = "select count(*) from lemma where site_id =:siteId", nativeQuery = true)
-    int countLemmasForSite(int siteId);
+    int countLemmasForSite(long siteId);
 }

@@ -10,17 +10,17 @@ spring:
   jpa:
     properties:
       hibernate:
+        jdbc:
+          batch_size: 60
         dialect: org.hibernate.dialect.MySQL8Dialect
+        #generate_statistics : true
+        order_inserts : true
     hibernate:
       ddl-auto: update
     show-sql: true
 
 indexing-settings:
   sites:
-    - url: https://www.lutherancathedral.ru/
-      name: lutherancathedral
-    - url: https://www.svetlovka.ru/
-      name: svetlovka
     - url: http://cimus.biz/
       name: cimus
 errors-settings:
@@ -47,6 +47,8 @@ extensions-settings:
     - .PDF
     - .doc
     - .xlsx
+    - .xls
+    - .bmp
 jsoup-settings:
     referrer : "http://www.google.com"
     userAgent : "Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"

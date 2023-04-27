@@ -107,7 +107,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
     }
        private void manageErrorPage(HttpStatusException ex) {
         siteEntity.setLastError("Ошибка при обработке " + rootUrl + ex.getLocalizedMessage());
-        pageParser.updateTimeForSite(siteEntity);
+
         try {
             saveErrorPage(siteEntity, ex.getStatusCode(), rootUrl);
         } catch (IOException | URISyntaxException exc) {

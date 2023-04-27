@@ -9,6 +9,7 @@ import searchengine.model.PageEntity;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 public class LemmaService {
@@ -19,7 +20,7 @@ public class LemmaService {
         this.luceneMorphology = luceneMorphology;
     }
 
-    public HashMap<String, Integer> collectLemmas (String text){
+    public Map<String, Integer> collectLemmas (String text){
         String[] words = arrayContainsRussianWords(text);
         HashMap<String, Integer> lemmas = new HashMap<>();
 
