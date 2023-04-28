@@ -51,7 +51,7 @@ public class PageParser {
     private void updatePage(int code, String content, String path, String pageUrl) {
         SiteEntity siteForPage = findSiteEntity(pageUrl);
 
-        lemmasForPage = Collections.synchronizedSet(siteForPage.getLemmaList());
+     //   lemmasForPage = Collections.synchronizedSet(siteForPage.getLemmaList());
         PageEntity page = pageRepository.findByPathAndId(path, siteForPage.getId());
         if (page == null){
             page = new PageEntity();
@@ -67,12 +67,12 @@ public class PageParser {
             Map.Entry<String, Integer> entry = iterator.next();
             String lemma = entry.getKey();
             Integer rank = entry.getValue();
-            LemmaEntity lemmaEntity = createLemma(siteForPage, lemma);
+            LemmaEntity currentLemma = createLemma(siteForPage, lemma);
+            siteForPage.getLemmaList().add(currentLemma);
+            siteRepository.save(siteForPage);
 
-            lemmasForPage.add(lemmaEntity);
-          //  createIndex(lemmaEntity, page, rank, indexesForPage);
         }
-        saveLemmasAndIndexes(lemmasForPage, indexesForPage);
+
 
     }
 
@@ -98,16 +98,17 @@ public class PageParser {
         LemmaEntity lemmaEntity = lemmaRepository.findLemmaByNameAndSiteId(siteForPage.getId(), lemma);
         if (lemmaEntity != null) {
             lemmaEntity.setFrequency(lemmaEntity.getFrequency() + 1);
-
-           // lemmaRepository.save(lemmaEntity);
             return lemmaEntity;
+           // lemmaRepository.save(lemmaEntity);
+
         } else {
             LemmaEntity currentLemma = new LemmaEntity();
             currentLemma.setFrequency(1);
             currentLemma.setSiteId(siteForPage);
             currentLemma.setLemma(lemma);
-          //  lemmaRepository.save(currentLemma);
-            return  currentLemma;
+            return currentLemma;
+
+
         }
     }
 
@@ -120,11 +121,5 @@ public class PageParser {
       //  indexRepository.save(indexEntity);
     }
 
-    private synchronized void saveLemmasAndIndexes(Set<LemmaEntity> lemmasForPage, List<IndexEntity> indexesForPage){
 
-        lemmaRepository.saveAll(lemmasForPage);
-
-        /*
-          indexRepository.saveAll(indexesForPage);*/
-    }
 }

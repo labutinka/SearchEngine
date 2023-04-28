@@ -76,10 +76,11 @@ public class IndexingServiceImpl implements IndexingService {
                             siteEntity,
                             extensions, jsoupSettings,pageParser);
                     forkJoinPool.invoke(siteParser);
-                    if (forkJoinPool.submit(siteParser).isDone()) {
+                    lemmaRepository.saveAll(siteEntity.getLemmaList());
+
+                if (forkJoinPool.submit(siteParser).isDone()) {
                         changeSiteEntity(siteEntity,IndexingStatus.INDEXED,LocalDateTime.now(),"");
                         setIsRunningWhileStopped();
-
                         System.out.println("Duration: " + (System.currentTimeMillis() - start));
 
                     }

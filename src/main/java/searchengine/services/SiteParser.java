@@ -103,6 +103,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
             parseElementsSavePage(urlsAtag, result);
         }
 
+
         return result;
     }
        private void manageErrorPage(HttpStatusException ex) {

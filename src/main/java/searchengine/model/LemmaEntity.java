@@ -17,7 +17,7 @@ public class LemmaEntity {
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "my_seq")
     @SequenceGenerator(name = "my_seq", sequenceName = "my_seq", allocationSize = 1)
     private long id;
-    @ManyToOne(cascade = CascadeType.MERGE, fetch = FetchType.LAZY)
+    @ManyToOne(cascade = CascadeType.MERGE)
     @JoinColumn(name = "site_id")
     SiteEntity siteId;
     @Column(columnDefinition = "varchar(255)")

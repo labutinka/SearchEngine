@@ -20,24 +20,16 @@ public class LemmaService {
         this.luceneMorphology = luceneMorphology;
     }
 
-    public Map<String, Integer> collectLemmas (String text){
+    public Map<String, Integer> collectLemmas(String text) {
         String[] words = arrayContainsRussianWords(text);
         HashMap<String, Integer> lemmas = new HashMap<>();
 
-        for (String word : words){
-            if (word.isBlank()) {
-                continue;
-            }
-
-            List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
-            if (anyWordBaseBelongToParticle(wordBaseForms)) {
+        for (String word : words) {
+            if (!checkWord(word)) {
                 continue;
             }
 
             List<String> normalForms = luceneMorphology.getNormalForms(word);
-            if (normalForms.isEmpty()) {
-                continue;
-            }
 
             String normalWord = normalForms.get(0);
 
@@ -51,10 +43,18 @@ public class LemmaService {
         return lemmas;
     }
 
-    public String clearContent(PageEntity page){
+    public String clearContent(PageEntity page) {
         StringBuilder clearedText = new StringBuilder();
         clearedText.append(Jsoup.clean(page.getContent(), Safelist.relaxed()));
         return clearedText.toString();
+    }
+
+    private boolean checkWord(String word) {
+        List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
+        List<String> normalForms = luceneMorphology.getNormalForms(word);
+
+        return !word.isBlank() && !anyWordBaseBelongToParticle(wordBaseForms)
+                && !normalForms.isEmpty();
     }
 
     private String[] arrayContainsRussianWords(String text) {
