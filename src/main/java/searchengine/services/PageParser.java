@@ -12,7 +12,6 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -25,13 +24,9 @@ import java.util.*;
 public class PageParser {
     private final SiteRepository siteRepository;
     private final LemmaRepository lemmaRepository;
-
     private final IndexRepository indexRepository;
     private final PageRepository pageRepository;
-
     private final LemmaService lemmaService;
-    private List<IndexEntity> indexesForPage;
-    private Set<LemmaEntity> lemmasForPage ;
 
     public void parsePage(String pageUrl) {
         try {
@@ -48,31 +43,18 @@ public class PageParser {
 
     }
 
-    private void updatePage(int code, String content, String path, String pageUrl) {
+   private void updatePage(int code, String content, String path, String pageUrl) {
         SiteEntity siteForPage = findSiteEntity(pageUrl);
 
-     //   lemmasForPage = Collections.synchronizedSet(siteForPage.getLemmaList());
         PageEntity page = pageRepository.findByPathAndId(path, siteForPage.getId());
-        if (page == null){
+        if (page == null) {
             page = new PageEntity();
         }
-        setFieldsToPage(page, findSiteEntity(pageUrl), code, content,path);
-        indexesForPage = new ArrayList<>();
+        setFieldsToPage(page, findSiteEntity(pageUrl), code, content, path);
+
         String clearedContent = lemmaService.clearContent(page);
         Map<String, Integer> lemmasList = lemmaService.collectLemmas(clearedContent);
-
-        Iterator<Map.Entry<String, Integer>> iterator = lemmasList.entrySet().iterator();
-   //     for (Map.Entry<String , Integer> entry:  lemmasList.entrySet()){
-        while (iterator.hasNext()){
-            Map.Entry<String, Integer> entry = iterator.next();
-            String lemma = entry.getKey();
-            Integer rank = entry.getValue();
-            LemmaEntity currentLemma = createLemma(siteForPage, lemma);
-            siteForPage.getLemmaList().add(currentLemma);
-            siteRepository.save(siteForPage);
-
-        }
-
+        createLemma(siteForPage, lemmasList, page);
 
     }
 
@@ -80,46 +62,54 @@ public class PageParser {
         return siteRepository.findSiteEntityByUrlContaining(pageUrl);
     }
 
-    protected synchronized void setFieldsToPage(PageEntity page, SiteEntity siteEntity, int code, String content, String path){
+    protected synchronized void setFieldsToPage(PageEntity page, SiteEntity siteEntity, int code, String content, String path) {
         page.setSiteId(siteEntity);
         page.setCode(code);
         page.setContent(content);
         page.setPath(path);
-        pageRepository.save(page);
+        pageRepository.saveAndFlush(page);
         updateTimeForSite(siteEntity);
-        System.out.println("setFieldsToPage");
+
     }
+
     protected synchronized void updateTimeForSite(SiteEntity siteEntity) {
         siteEntity.setStatusTime(LocalDateTime.now());
-        siteRepository.save(siteEntity);
+        siteRepository.saveAndFlush(siteEntity);
     }
 
-    private LemmaEntity createLemma(SiteEntity siteForPage, String lemma) {
-        LemmaEntity lemmaEntity = lemmaRepository.findLemmaByNameAndSiteId(siteForPage.getId(), lemma);
-        if (lemmaEntity != null) {
-            lemmaEntity.setFrequency(lemmaEntity.getFrequency() + 1);
-            return lemmaEntity;
-           // lemmaRepository.save(lemmaEntity);
+    private void createLemma(SiteEntity siteForPage, Map<String, Integer> lemmaMap, PageEntity page) {
+        Set<IndexEntity> indexesForPage = new HashSet<>();
+        Set<LemmaEntity> lemmas = new HashSet<>();
+        synchronized (lemmaRepository) {
+            for (String lemmaString : lemmaMap.keySet()) {
+                Optional<LemmaEntity> optionalLemma = lemmaRepository.findLemmaByNameAndSiteId(siteForPage.getId(), lemmaString);
+                LemmaEntity currentLemma;
+                if (optionalLemma.isEmpty()) {
+                    currentLemma = new LemmaEntity();
+                    currentLemma.setFrequency(1);
+                    currentLemma.setSiteId(siteForPage);
+                    currentLemma.setLemma(lemmaString);
+                } else {
+                    currentLemma = optionalLemma.get();
+                    currentLemma.setFrequency(optionalLemma.get().getFrequency() + 1);
+                }
+                lemmas.add(currentLemma);
+                createIndex(currentLemma, page, lemmaMap.get(lemmaString), indexesForPage);
+            }
 
-        } else {
-            LemmaEntity currentLemma = new LemmaEntity();
-            currentLemma.setFrequency(1);
-            currentLemma.setSiteId(siteForPage);
-            currentLemma.setLemma(lemma);
-            return currentLemma;
-
-
+            lemmaRepository.saveAllAndFlush(lemmas);
         }
+        indexRepository.saveAllAndFlush(indexesForPage);
     }
 
-    private void createIndex(LemmaEntity lemma, PageEntity page, int rank, List<IndexEntity> indexesForPage){
+    private void createIndex(LemmaEntity lemma, PageEntity page, int rank, Set<IndexEntity> indexesForPage) {
         IndexEntity indexEntity = new IndexEntity();
         indexEntity.setPageId(page);
         indexEntity.setLemmaId(lemma);
         indexEntity.setRank(rank);
         indexesForPage.add(indexEntity);
-      //  indexRepository.save(indexEntity);
     }
+
 
 
 }

@@ -16,6 +16,7 @@ import searchengine.repositories.SiteRepository;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -42,8 +43,8 @@ public class StatisticsServiceImpl implements StatisticsService {
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
-            SiteEntity siteEntity = siteRepository.findByNameAndUrl(site.getName(), site.getUrl());
-            updateDataForSite(siteEntity);
+            Optional<SiteEntity> siteEntity = siteRepository.findByNameAndUrl(site.getName(), site.getUrl());
+            siteEntity.ifPresent(this::updateDataForSite);
             item.setPages(pages);
             item.setLemmas(lemmas);
             item.setStatus(status);

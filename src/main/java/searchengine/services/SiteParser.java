@@ -15,30 +15,33 @@ import searchengine.repositories.SiteRepository;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.RecursiveTask;
 import java.net.URI;
+
 
 import static searchengine.services.IndexingServiceImpl.isInterrupted;
 
 
 public class SiteParser extends RecursiveTask<Set<String>> {
     private static final Logger logger = LogManager.getLogger(SiteParser.class);
-    private static final Set<String> links = Collections.synchronizedSet(new HashSet<>());
+    private static final Set<String> links = new CopyOnWriteArraySet<>();
     private final ExtensionsList extensions;
     SiteEntity siteEntity;
-    private URI uriForRootUrl;
+    private final String initUrl;
     protected String rootUrl;
     PageRepository pageRepository;
     SiteRepository siteRepository;
     PageParser pageParser;
     JsoupSettings jsoupSettings;
 
-    private static final Set<String> parsedLinks = Collections.synchronizedSet(new HashSet<>());
+    private static final Set<String> parsedLinks = new CopyOnWriteArraySet<>();
 
-    public SiteParser(String rootUrl, PageRepository pageRepository, SiteRepository siteRepository,
+    public SiteParser(String rootUrl, String initUrl, PageRepository pageRepository, SiteRepository siteRepository,
                       SiteEntity siteEntity, ExtensionsList extensions, JsoupSettings jsoupSettings,
                       PageParser pageParser) {
         this.rootUrl = rootUrl;
+        this.initUrl = initUrl;
         this.pageRepository = pageRepository;
         this.siteRepository = siteRepository;
         this.siteEntity = siteEntity;
@@ -52,14 +55,9 @@ public class SiteParser extends RecursiveTask<Set<String>> {
     protected Set<String> compute() {
         List<SiteParser> taskList = new ArrayList<>();
         if (!isInterrupted) {
-            try {
-                uriForRootUrl = new URI(rootUrl);
-            } catch (URISyntaxException e) {
-                e.printStackTrace();
-            }
             for (String singleLink : getUrl(rootUrl)) {
                 if (!parsedLinks.contains(singleLink)) {
-                    SiteParser task = new SiteParser(singleLink, pageRepository, siteRepository,
+                    SiteParser task = new SiteParser(singleLink, initUrl,  pageRepository, siteRepository,
                             siteEntity, extensions, jsoupSettings, pageParser);
                     taskList.add(task);
                     task.fork();
@@ -75,7 +73,6 @@ public class SiteParser extends RecursiveTask<Set<String>> {
 
         return links;
     }
-
     private TreeSet<String> getUrl(String rootUrl) {
         Document doc = null;
         TreeSet<String> result = new TreeSet<>();
@@ -98,11 +95,11 @@ public class SiteParser extends RecursiveTask<Set<String>> {
         }
 
         Document finalDoc = doc;
+
         if (finalDoc != null) {
             Elements urlsAtag = finalDoc.select("a");
             parseElementsSavePage(urlsAtag, result);
         }
-
 
         return result;
     }
@@ -118,14 +115,14 @@ public class SiteParser extends RecursiveTask<Set<String>> {
 
     private synchronized void saveErrorPage(SiteEntity siteEntity, int code, String rootUrl) throws IOException, URISyntaxException {
         URI uri = new URI(rootUrl);
-        if (pageRepository.findByName(uri.getPath()) == null) {
+        if (pageRepository.findByPathAndId(uri.getPath(), siteEntity.getId()) == null) {
             PageEntity page = new PageEntity();
             pageParser.setFieldsToPage(page, siteEntity,code," ",uri.getPath());
-            pageParser.updateTimeForSite(siteEntity);
+
         }
     }
 
-    private void parseElementsSavePage(Elements urlsAtag, TreeSet<String> result) {
+    protected void parseElementsSavePage(Elements urlsAtag, TreeSet<String> result) {
         urlsAtag.forEach(href ->
         {
             String url = href.absUrl("href");
@@ -143,6 +140,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
                 break;
             }
         }
-        return url.contains(uriForRootUrl.getHost()) && isUrlOk;
+
+        return url.contains(initUrl) && isUrlOk;
     }
 }

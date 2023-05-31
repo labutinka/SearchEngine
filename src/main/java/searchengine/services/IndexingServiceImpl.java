@@ -5,15 +5,16 @@ import org.springframework.stereotype.Service;
 import searchengine.dto.BasicResponse;
 import searchengine.config.*;
 import searchengine.controllers.exeptions.ApiException;
-import searchengine.model.IndexingStatus;
-import searchengine.model.SiteEntity;
+import searchengine.model.*;
 import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 
 @Service
@@ -42,6 +43,7 @@ public class IndexingServiceImpl implements IndexingService {
         List<Site> sitesList = sites.getSites();
         setIsRunningWhileStarted();
         setIsInterruptedWhileStarted();
+
         ForkJoinPool forkJoinPool = new ForkJoinPool();
         executeMultiplyIndexing(sitesList, forkJoinPool);
 
@@ -67,23 +69,20 @@ public class IndexingServiceImpl implements IndexingService {
         for (int i = 0; i < sitesList.size(); i++) {
             deleteInfoForSite(sitesList.get(i).getName(), sitesList.get(i).getUrl());
             SiteEntity siteEntity = createSiteEntity(sitesList.get(i).getName(), sitesList.get(i).getUrl());
-
             try {
                 int finalI = i;
                 Runnable task = () -> {
-                    SiteParser siteParser = new SiteParser(sitesList.get(finalI).getUrl(),
+                    SiteParser siteParser = new SiteParser(sitesList.get(finalI).getUrl(),sitesList.get(finalI).getUrl(),
                             pageRepository, siteRepository,
                             siteEntity,
                             extensions, jsoupSettings,pageParser);
                     forkJoinPool.invoke(siteParser);
-                    lemmaRepository.saveAll(siteEntity.getLemmaList());
 
                 if (forkJoinPool.submit(siteParser).isDone()) {
-                        changeSiteEntity(siteEntity,IndexingStatus.INDEXED,LocalDateTime.now(),"");
-                        setIsRunningWhileStopped();
-                        System.out.println("Duration: " + (System.currentTimeMillis() - start));
-
-                    }
+                    changeSiteEntity(siteEntity, IndexingStatus.INDEXED, LocalDateTime.now(), "");
+                    setIsRunningWhileStopped();
+                    System.out.println("Duration: " + (System.currentTimeMillis() - start));
+                }
                     if (isInterrupted) {
                         changeSiteEntity(siteEntity,IndexingStatus.FAILED,LocalDateTime.now(),errorsList.getErrors().get("indexingStopped"));
                     }
@@ -94,23 +93,27 @@ public class IndexingServiceImpl implements IndexingService {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
+            pageRepository.deactivateIndex();
         }
     }
     private synchronized void deleteInfoForSite(String name, String url) {
-        SiteEntity site = siteRepository.findByNameAndUrl(name, url);
-        if (site != null){
-
-            pageRepository.findAllPagesForSite(site.getId())
+        Optional<SiteEntity> site = siteRepository.findByNameAndUrl(name, url);
+        ArrayList<IndexEntity> indexToDelete = new ArrayList<>();
+        ArrayList<PageEntity> pageToDelete = new ArrayList<>();
+        if (site.isPresent()){
+            pageRepository.findAllPagesForSite(site.get().getId())
                     .forEach(page ->
                             {
-                                indexRepository.indexesForPage(page.getId()).forEach(indexRepository::delete);
-                                pageRepository.delete(page);
+                                indexToDelete.addAll(indexRepository.indexesForPage(page.getId()));
+                                indexRepository.deleteAll(indexToDelete);
+                                pageToDelete.add(page);
                             }
                     );
-            lemmaRepository.lemmasForSite(site.getId()).forEach(lemmaRepository::delete);
-            siteRepository.delete(site);
-        }
 
+            pageRepository.deleteAll(pageToDelete);
+            lemmaRepository.deleteAll(new ArrayList<>(lemmaRepository.lemmasForSite(site.get().getId())));
+            siteRepository.delete(site.get());
+        }
     }
 
     private synchronized SiteEntity createSiteEntity(String name, String url) {
@@ -128,7 +131,7 @@ public class IndexingServiceImpl implements IndexingService {
         siteEntity.setStatus(status);
         siteEntity.setStatusTime(statusTime);
         siteEntity.setLastError(lastError);
-        siteRepository.save(siteEntity);
+        siteRepository.saveAndFlush(siteEntity);
     }
 
     private static void setIsRunningWhileStopped(){

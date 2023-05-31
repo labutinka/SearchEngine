@@ -25,7 +25,7 @@ public class PageEntity {
 
     int code;
 
-    @Column(columnDefinition = "MEDIUMTEXT")
+    @Column(length = 16777215, columnDefinition = "mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
     String content;
 
 

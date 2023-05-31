@@ -1,4 +1,5 @@
 # example values
+#trace: true
 server:
   port: 8080
 
@@ -11,18 +12,24 @@ spring:
     properties:
       hibernate:
         jdbc:
-          batch_size: 60
+          batch_size: 100
         dialect: org.hibernate.dialect.MySQL8Dialect
+        #enable_lazy_load_no_trans : true
         #generate_statistics : true
         order_inserts : true
     hibernate:
       ddl-auto: update
     show-sql: true
-
+#spring.jpa.properties.hibernate.enable_lazy_load_no_trans=true
 indexing-settings:
   sites:
-    - url: http://cimus.biz/
-      name: cimus
+    - url: https://www.svetlovka.ru/
+      name: svetlovka.ru
+    - url : https://www.dextra.ru/
+      name: Dextra
+
+
+
 errors-settings:
   errors:
     indexingNotStarted : "Индексация не запущена"
@@ -52,3 +59,12 @@ extensions-settings:
 jsoup-settings:
     referrer : "http://www.google.com"
     userAgent : "Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
+logging:
+  level:
+    org:
+      type:
+        descriptor:
+          sql:
+            BasicBinder: trace
+
+
