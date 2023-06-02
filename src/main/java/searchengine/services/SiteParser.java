@@ -12,6 +12,7 @@ import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
+
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -48,7 +49,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
         this.extensions = extensions;
         this.jsoupSettings = jsoupSettings;
         this.pageParser = pageParser;
-        logger.info("Cоздан экземпляр для ссылки: {}" , rootUrl);
+        logger.info("Cоздан экземпляр для ссылки: {}", rootUrl);
     }
 
     @Override
@@ -57,7 +58,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
         if (!isInterrupted) {
             for (String singleLink : getUrl(rootUrl)) {
                 if (!parsedLinks.contains(singleLink)) {
-                    SiteParser task = new SiteParser(singleLink, initUrl,  pageRepository, siteRepository,
+                    SiteParser task = new SiteParser(singleLink, initUrl, pageRepository, siteRepository,
                             siteEntity, extensions, jsoupSettings, pageParser);
                     taskList.add(task);
                     task.fork();
@@ -73,6 +74,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
 
         return links;
     }
+
     private TreeSet<String> getUrl(String rootUrl) {
         Document doc = null;
         TreeSet<String> result = new TreeSet<>();
@@ -103,7 +105,8 @@ public class SiteParser extends RecursiveTask<Set<String>> {
 
         return result;
     }
-       private void manageErrorPage(HttpStatusException ex) {
+
+    private void manageErrorPage(HttpStatusException ex) {
         siteEntity.setLastError("Ошибка при обработке " + rootUrl + ex.getLocalizedMessage());
 
         try {
@@ -117,7 +120,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
         URI uri = new URI(rootUrl);
         if (pageRepository.findByPathAndId(uri.getPath(), siteEntity.getId()) == null) {
             PageEntity page = new PageEntity();
-            pageParser.setFieldsToPage(page, siteEntity,code," ",uri.getPath());
+            pageParser.setFieldsToPage(page, siteEntity, code, " ", uri.getPath());
 
         }
     }
@@ -132,6 +135,7 @@ public class SiteParser extends RecursiveTask<Set<String>> {
             }
         });
     }
+
     private boolean checkURL(String url) {
         boolean isUrlOk = true;
         for (int i = 0; i < extensions.getExtensions().size(); i++) {

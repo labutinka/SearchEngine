@@ -12,6 +12,7 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,10 +41,9 @@ public class PageParser {
         } catch (IOException | URISyntaxException ex) {
             ex.printStackTrace();
         }
-
     }
 
-   private void updatePage(int code, String content, String path, String pageUrl) {
+    private void updatePage(int code, String content, String path, String pageUrl) {
         SiteEntity siteForPage = findSiteEntity(pageUrl);
 
         PageEntity page = pageRepository.findByPathAndId(path, siteForPage.getId());
@@ -55,7 +55,6 @@ public class PageParser {
         String clearedContent = lemmaService.clearContent(page);
         Map<String, Integer> lemmasList = lemmaService.collectLemmas(clearedContent);
         createLemma(siteForPage, lemmasList, page);
-
     }
 
     private SiteEntity findSiteEntity(String pageUrl) {
@@ -69,7 +68,6 @@ public class PageParser {
         page.setPath(path);
         pageRepository.saveAndFlush(page);
         updateTimeForSite(siteEntity);
-
     }
 
     protected synchronized void updateTimeForSite(SiteEntity siteEntity) {
@@ -109,7 +107,5 @@ public class PageParser {
         indexEntity.setRank(rank);
         indexesForPage.add(indexEntity);
     }
-
-
 
 }

@@ -64,7 +64,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         return response;
     }
 
-    private void updateDataForSite(SiteEntity siteEntity){
+    private void updateDataForSite(SiteEntity siteEntity) {
         if (siteEntity != null) {
             pages = pageRepository.countPagesForSite(siteEntity.getId());
             lemmas = lemmaRepository.countLemmasForSite(siteEntity.getId());
@@ -74,7 +74,8 @@ public class StatisticsServiceImpl implements StatisticsService {
             millis = timestamp.getTime();
         }
     }
-    private void clearData(){
+
+    private void clearData() {
         pages = 0;
         lemmas = 0;
         error = " ";

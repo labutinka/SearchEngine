@@ -25,9 +25,8 @@ indexing-settings:
   sites:
     - url: https://www.svetlovka.ru/
       name: svetlovka.ru
-    - url : https://www.dextra.ru/
+    - url: https://www.dextra.ru/
       name: Dextra
-
 
 
 errors-settings:

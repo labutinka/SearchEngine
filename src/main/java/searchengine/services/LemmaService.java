@@ -3,6 +3,7 @@ package searchengine.services;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.springframework.stereotype.Service;
 import searchengine.model.PageEntity;
 
@@ -13,6 +14,8 @@ public class LemmaService {
     private final LuceneMorphology luceneMorphology;
     private static final String WORD_TYPE_REGEX = "\\W\\w&&[^а-яА-Я\\s]";
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
+
+
 
     public LemmaService(LuceneMorphology luceneMorphology) {
         this.luceneMorphology = luceneMorphology;
@@ -57,8 +60,13 @@ public class LemmaService {
     }
 
     public String clearContent(PageEntity page) {
-      return Jsoup.parse(page.getContent()).body().text();
+
+        return Jsoup
+                .clean(page.getContent(), Safelist.simpleText())
+                .replaceAll("[^А-Яа-яЁё\\d\\s,.!]+", " ")
+                .replaceAll("\\s+", " ");
     }
+
 
     private boolean checkWord(String word) {
         List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
