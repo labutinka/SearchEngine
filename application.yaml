@@ -6,7 +6,7 @@ server:
 spring:
   datasource:
     username: root
-    password: Kf,enbyrf332
+    password: 
     url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
   jpa:
     properties:
