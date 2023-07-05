@@ -28,28 +28,26 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SearchService {
-    private final ErrorsList errorsList;
     private final LemmaService lemmaService;
     private final LemmaRepository lemmaRepository;
     private final IndexRepository indexRepository;
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
 
+
     public SearchResponse findWords(String query, @RequestParam(required = false) String site,
                                     @RequestParam(required = false) int offset,
-                                    @RequestParam(required = false) int limit) throws ApiException {
-        if (StringUtils.isBlank(query)) {
-            throw new ApiException(errorsList.getErrors().get("emptyQuery"));
-        }
-        pageRepository.activateIndex();
-        Map<String, Integer> lemmas = lemmaService.collectLemmas(query);
-        ArrayList<String> allLemmasFromQuery = new ArrayList<>(lemmas.keySet());
+                                    @RequestParam(required = false) int limit){
+
         ArrayList<Long> pageIds = new ArrayList<>();
         ArrayList<DetailedSearchItem> data = new ArrayList<>();
+        ArrayList<PageEntity> pagesForResponse = new ArrayList<>();
         List<PageEntity> resultPages;
+        pageRepository.activateIndex();
+        ArrayList<String> allLemmasFromQuery = new ArrayList<>(lemmaService.collectLemmas(query).keySet());
+
         Set<SiteEntity> sitesForSearch = getSiteEntitiesForSearch(site);
         checkSiteEntities(sitesForSearch, allLemmasFromQuery);
-        ArrayList<PageEntity> pagesForResponse = new ArrayList<>();
         for (SiteEntity singleSite : sitesForSearch) {
             ArrayList<LemmaEntity> lemmasByFrequency = lemmaRepository.findLemmasAndFrequency(allLemmasFromQuery, singleSite.getId(), pageRepository.countPagesForSite(singleSite.getId()) * 9 / 10);
             if (lemmasByFrequency.size() > 0) {
@@ -61,6 +59,7 @@ public class SearchService {
             }
         }
         getData(data, pagesForResponse, allLemmasFromQuery, query);
+
         data.sort(Collections.reverseOrder((o1, o2) -> Float.compare(o1.getRelevance(), o2.getRelevance())));
         List<DetailedSearchItem> pageableData = data.stream().skip(offset).limit(limit).toList();
         return new SearchResponse(true, pagesForResponse.size(), pageableData);
@@ -77,12 +76,8 @@ public class SearchService {
     }
 
     private void checkSiteEntities(Set<SiteEntity> sitesForSearch, List<String> allLemmasFromQuery) {
-        for (Iterator<SiteEntity> iterator = sitesForSearch.iterator(); iterator.hasNext(); ) {
-            for (String lemmaQuery : allLemmasFromQuery) {
-                if (lemmaRepository.findLemmaByNameAndSiteId(iterator.next().getId(), lemmaQuery).isEmpty()) {
-                    iterator.remove();
-                }
-            }
+        for (String lemmaQuery : allLemmasFromQuery) {
+            sitesForSearch.removeIf(siteEntity -> lemmaRepository.findLemmaByNameAndSiteId(siteEntity.getId(), lemmaQuery).isEmpty());
         }
     }
 
@@ -171,7 +166,6 @@ public class SearchService {
         }).collect(Collectors.joining(" "));
 
     }
-
 
     private float getAbsRelevanceForPage(PageEntity page, ArrayList<String> lemmasFromQuery) {
         ArrayList<Long> lemmasIdsFromQuery = lemmaRepository.findLemmaIdByName(lemmasFromQuery);

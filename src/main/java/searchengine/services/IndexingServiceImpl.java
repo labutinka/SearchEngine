@@ -77,9 +77,9 @@ public class IndexingServiceImpl implements IndexingService {
                 int finalI = i;
                 Runnable task = () -> {
                     SiteParser siteParser = new SiteParser(sitesList.get(finalI).getUrl(), sitesList.get(finalI).getUrl(),
-                            pageRepository, siteRepository,
-                            siteEntity,
+                            pageRepository, siteRepository, siteEntity,
                             extensions, jsoupSettings, pageParser);
+
                     forkJoinPool.invoke(siteParser);
 
                     if (forkJoinPool.submit(siteParser).isDone()) {
